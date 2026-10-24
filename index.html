@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Free Photo Resizer - YouTube, Instagram, Passport 35x45, WhatsApp</title>
+<meta name="description" content="Free photo resizer online. Resize for YouTube thumbnail 1280x720, Instagram 1080x1080, Passport 35x45, WhatsApp DP, JAMB. 100% offline, no upload.">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family: -apple-system, sans-serif}
+body{background:#f5f7fa;padding:12px}
+.box{max-width:560px;margin:auto;background:#fff;border-radius:16px;padding:16px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
+h1{font-size:19px;text-align:center}
+.sub{font-size:12px;color:#666;text-align:center;margin:4px 0 12px}
+.upload{border:2px dashed #0a84ff;background:#f0f7ff;border-radius:12px;padding:14px;text-align:center}
+.presets{display:flex;gap:6px;overflow-x:auto;padding:10px 0;white-space:nowrap}
+.presets button{padding:8px 12px;border-radius:20px;border:1px solid #ddd;background:#fff;font-size:12px;font-weight:600;flex-shrink:0}
+.presets button.active{background:#0a84ff;color:#fff;border-color:#0a84ff}
+.row{display:flex;gap:8px;margin:8px 0}
+.row input{flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px}
+#wrap{position:relative;width:100%;max-width:400px;height:400px;margin:12px auto;background:#eee;border-radius:10px;overflow:hidden;display:none;touch-action:none}
+canvas{width:100%;height:100%}
+.controls{display:none;margin-top:8px}
+#zoom{width:100%}
+.btn{width:100%;padding:14px;background:#0a84ff;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:16px;margin-top:10px}
+.btn:disabled{background:#ccc}
+.seo{font-size:12px;color:#444;line-height:1.6;margin-top:20px;border-top:1px solid #eee;padding-top:12px}
+</style>
+</head>
+<body>
+<div class="box">
+<h1>Photo Resizer - All Sizes</h1>
+<p class="sub">YouTube, Instagram, Passport, WhatsApp - Offline & Free</p>
+
+<div class="upload" id="upBox">
+<b>Tap to Upload Image</b><br><span style="font-size:11px">JPG, PNG, WEBP</span>
+<input type="file" id="file" accept="image/*" style="display:none">
+</div>
+
+<div class="presets" id="presets"></div>
+
+<div class="row">
+<input type="number" id="w" placeholder="Width (px)" value="350">
+<input type="number" id="h" placeholder="Height (px)" value="450">
+</div>
+
+<div id="wrap"><canvas id="c" width="400" height="400"></canvas></div>
+
+<div class="controls" id="ctrl">
+<label style="font-size:12px">Zoom: <input type="range" id="zoom" min="0.3" max="3" step="0.05" value="1"></label>
+</div>
+
+<button class="btn" id="dl" disabled>Download Resized Photo</button>
+<p style="font-size:11px;color:#666;margin-top:8px;text-align:center">Drag to move photo • Pinch/Zoom slider • Works 100% offline</p>
+
+<div class="seo">
+<h3>How to use</h3>
+<p>Upload photo, choose preset (Passport 35x45 for NIN/NYSC, YouTube 1280x720, Instagram 1080x1080, WhatsApp DP 500x500) or type custom size, drag to center face, download. Your image never leaves your phone.</p>
+<p><b>Sizes included:</b> Passport 350x450 (35x45mm), YouTube Thumbnail 1280x720, Instagram Post 1080x1080, Story 1080x1920, WhatsApp DP 500x500, JAMB 300x300.</p>
+</div>
+</div>
+
+<script>
+const presets=[
+{n:"Custom",w:350,h:450},
+{n:"Passport 35x45",w:350,h:450},
+{n:"YouTube Thumb",w:1280,h:720},
+{n:"Instagram Post",w:1080,h:1080},
+{n:"Instagram Story",w:1080,h:1920},
+{n:"WhatsApp DP",w:500,h:500},
+{n:"JAMB Photo",w:300,h:300},
+{n:"Facebook Cover",w:1640,h:924}
+];
+const pDiv=document.getElementById('presets');
+const wI=document.getElementById('w'), hI=document.getElementById('h');
+const file=document.getElementById('file'), upBox=document.getElementById('upBox');
+const canvas=document.getElementById('c'), ctx=canvas.getContext('2d'), wrap=document.getElementById('wrap');
+const zoom=document.getElementById('zoom'), dl=document.getElementById('dl'), ctrl=document.getElementById('ctrl');
+let img=new Image(), imgX=0,imgY=0,scale=1,isDrag=false,lx,ly,curW=350,curH=450;
+
+function renderPresets(){
+ presets.forEach((p,i)=>{
+  const b=document.createElement('button');
+  b.textContent=p.n;
+  if(i==1) b.classList.add('active');
+  b.onclick=()=>{
+   document.querySelectorAll('.presets button').forEach(x=>x.classList.remove('active'));
+   b.classList.add('active');
+   if(p.n!=='Custom'){ wI.value=p.w; hI.value=p.h; setSize(p.w,p.h); }
+  };
+  pDiv.appendChild(b);
+ });
+}
+renderPresets();
+
+function setSize(w,h){
+ curW=w; curH=h;
+ const ratio=w/h;
+ let cw=400, ch=400/ratio;
+ if(ch>400){ ch=400; cw=400*ratio; }
+ if(w>0 && h>0) { draw(); }
+}
+
+wI.oninput=hI.oninput=()=>{ 
+ const w=parseInt(wI.value)||350, h=parseInt(hI.value)||450; 
+ document.querySelectorAll('.presets button').forEach(b=>b.classList.remove('active'));
+ presets[0].active=true; document.querySelector('.presets button').classList.add('active');
+ setSize(w,h);
+};
+
+upBox.onclick=()=>file.click();
+file.onchange=e=>{
+ const f=e.target.files[0]; if(!f) return;
+ const r=new FileReader();
+ r.onload=ev=>{
+  img.onload=()=>{
+   wrap.style.display='block'; ctrl.style.display='block'; dl.disabled=false;
+   scale=Math.max(curW/img.width, curH/img.height)*0.8;
+   zoom.value=scale;
+   imgX=(400 - img.width*scale)/2; imgY=(400 - img.height*scale)/2;
+   canvas.width=400; canvas.height=400;
+   draw();
+  };
+  img.src=ev.target.result;
+ };
+ r.readAsDataURL(f);
+};
+
+function draw(){
+ if(!img.src) return;
+ // draw to temp canvas for download
+ ctx.fillStyle='#fff'; ctx.fillRect(0,0,400,400);
+ ctx.drawImage(img,imgX,imgY,img.width*scale,img.height*scale);
+}
+
+let getPos=t=>({x:t.clientX||t.touches[0].clientX, y:t.clientY||t.touches[0].clientY});
+canvas.addEventListener('mousedown', e=>{isDrag=true; lx=e.clientX; ly=e.clientY});
+canvas.addEventListener('touchstart', e=>{isDrag=true; lx=e.touches[0].clientX; ly=e.touches[0].clientY},{passive:false});
+window.addEventListener('mousemove', e=>{ if(!isDrag) return; imgX+=e.clientX-lx; imgY+=e.clientY-ly; lx=e.clientX; ly=e.clientY; draw(); });
+window.addEventListener('touchmove', e=>{ if(!isDrag) return; e.preventDefault(); imgX+=e.touches[0].clientX-lx; imgY+=e.touches[0].clientY-ly; lx=e.touches[0].clientX; ly=e.touches[0].clientY; draw(); },{passive:false});
+window.addEventListener('mouseup', ()=>isDrag=false); window.addEventListener('touchend', ()=>isDrag=false);
+zoom.oninput=e=>{
+ const ns=parseFloat(e.target.value);
+ const cx=200, cy=200;
+ imgX=cx-(cx-imgX)*(ns/scale); imgY=cy-(cy-imgY)*(ns/scale); scale=ns; draw();
+};
+
+dl.onclick=()=>{
+ const out=document.createElement('canvas');
+ out.width=parseInt(wI.value)||350; out.height=parseInt(hI.value)||450;
+ const octx=out.getContext('2d');
+ octx.fillStyle='#fff'; octx.fillRect(0,0,out.width,out.height);
+ // map preview coords to final size
+ const sx=400/out.width;
+ const dScale=scale/sx;I 
+ const dx=imgX/sx, dy=imgY/sx;
+ octx.drawImage(img,dx,dy,img.width*dScale,img.height*dScale);
+ const a=document.createElement('a');
+ a.download=`resized-${out.width}x${out.height}.jpg`;
+ a.href=out.toDataURL('image/jpeg',0.92);
+ a.click();
+};
+setSize(350,450);
+</script>
+</body>
+  </html>
